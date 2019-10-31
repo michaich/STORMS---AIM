@@ -21,31 +21,71 @@ def interpolate_frames(frame, coords, flow, n_frames):
 
 def OpticalFlow(Gold, Gnew, nframes):
 
+    t0 = time.time()
+
     gridoldF=np.float64( Gold ).T
     gridnewF=np.float64( Gnew ).T
 
-    optflow_params = [0.5, 3, 15, 3, 7, 1.5, 0]
 
+    minF_old = np.min(gridoldF)
+    maxF_old = np.max(gridoldF)
+
+    minF_new = np.min(gridnewF)
+    maxF_new = np.max(gridnewF)
+
+    maxAll = max(maxF_new,maxF_old)
+    minAll = min(minF_new,minF_old)
+
+    aux = 1.0 / (maxAll-minAll) 
+
+    gridoldF = (gridoldF-minAll)*aux*256
+    gridnewF = (gridnewF-minAll)*aux*256
+
+    t1 = time.time()
+
+
+
+    t2 = time.time()
+
+    optflow_params = [0.5, 7, 4*15, 3, 7, 1.5, 0]
     flowUp   = cv2.calcOpticalFlowFarneback(gridnewF, gridoldF, None, *optflow_params)
     flowDown = cv2.calcOpticalFlowFarneback(gridoldF, gridnewF, None, *optflow_params)
     
+    t3 = time.time()
+
     
+    
+
     lx = gridold.shape[0]
     ly = gridold.shape[1]
     ycoords, xcoords = np.mgrid[0:ly, 0:lx]
     coords = np.float32(np.dstack([xcoords, ycoords]))
     
-    inter_framesUp   = interpolate_frames(gridoldF, coords, flowUp  , nframes)
-    inter_framesDown = interpolate_frames(gridnewF, coords, flowDown, nframes)
+
+    inter_framesUp   = np.array(interpolate_frames(gridoldF, coords, flowUp  , nframes))
+    inter_framesDown = np.array(interpolate_frames(gridnewF, coords, flowDown, nframes))
     inter_frames     = []
+
+    t4 = time.time()
     
+
     N = len(inter_framesUp)
+
     for i in range(N):
         alpha = float(i)/float(N)
         inter_frames.append(inter_framesUp[i]*(1.0-alpha) + inter_framesDown[-i]*alpha)
-        
+    
     inter_frames.append(gridnewF)
     
+    t5 = time.time()
+
+    print("Running for ", nframes, "frames.")
+    print("Normalization time=",t1-t0)
+    print("Optical Flow time =",t3-t2)
+    print("Interpolation time=",t4-t3)
+    print("final loop time   =",t5-t4)
+    print("Total time        =",t5-t0)
+
     return inter_frames
 
 
@@ -69,20 +109,20 @@ parameter_grid = 'wind_speed_10m:kmh'
 # LON: 64.4
 
 #Nice weather close to France
-lat_N = 45
-lon_W = -25
-lat_S = 35
-lon_E = 5
+#lat_N = 45
+#lon_W = -25
+#lat_S = 35
+#lon_E = 5
 
 #Hurricane
-#lat_N = 25
-#lon_W = 60
-#lat_S = 15
-#lon_E = 70
+lat_N = 25
+lon_W = 60
+lat_S = 15
+lon_E = 70
 
 
-res_lat = 0.1
-res_lon = 0.1
+res_lat = 0.02
+res_lon = 0.02
 
 
 try:
@@ -103,7 +143,13 @@ gridold = gridold.to_numpy()
 
 
 
+
+
 inter_frames = OpticalFlow(gridold, gridnew, 10)
+
+
+
+
 
 fig = plt.figure(dpi=100)
 viewer = fig.add_subplot(111)
