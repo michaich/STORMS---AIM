@@ -44,7 +44,7 @@ def OpticalFlow(Gold, Gnew, nframes):
     t2 = time.time()
 
 
-    optflow_params = [0.5, 6 , 40 , 3 , 5, 1.2, 0]
+    optflow_params = [0.5, 6, 50, 3, 5, 1.2, 0]
     flowUp   = cv2.calcOpticalFlowFarneback(gridnewF, gridoldF, None, *optflow_params)
     flowDown = cv2.calcOpticalFlowFarneback(gridoldF, gridnewF, None, *optflow_params)
     
@@ -73,6 +73,11 @@ def OpticalFlow(Gold, Gnew, nframes):
         inter_frames.append( inter_framesUp[i]*(1.0-alpha) + inter_framesDown[-i]*alpha) 
     
     inter_frames.append(gridnewF)
+
+
+    inter_frames = inter_frames / (aux* 65535) + minAll
+
+
     
     t5 = time.time()
 
@@ -95,8 +100,8 @@ timenew = now
 timeold = now - dt.timedelta(hours=6)
 
 
-#parameter_grid = 'msl_pressure:Pa'
-parameter_grid = 'wind_speed_10m:kmh'
+parameter_grid = 'msl_pressure:Pa'
+#parameter_grid = 'wind_speed_10m:kmh'
 #parameter_grid = ['t_2m:C', 'precip_1h:mm']
 #parameter_grid = 'low_cloud_cover:p'
 
@@ -114,14 +119,14 @@ lon_E = 5
 
 
 #Hurricane
-lat_N = 25
-lon_W = 60
-lat_S = 15
-lon_E = 70
+#lat_N = 25
+#lon_W = 60
+#lat_S = 15
+#lon_E = 70
 
 
-res_lat = (lat_N - lat_S)/256.  
-res_lon = (lon_E - lon_W)/256.  
+res_lat = 0.1 #(lat_N - lat_S)/1024.  
+res_lon = 0.1 #(lon_E - lon_W)/1024.  
 
 
 try:
@@ -139,6 +144,11 @@ except Exception as e:
 
 gridnew = gridnew.to_numpy()
 gridold = gridold.to_numpy()
+ValMin = np.min(gridnew)
+ValMax = np.max(gridnew)
+
+ValMin = min(ValMin,np.min(gridold))
+ValMax = max(ValMax,np.max(gridold))
 
 #gridnew = np.load("gridnew.npy")
 #gridold = np.load("gridold.npy")
@@ -161,5 +171,6 @@ for i in range(len(inter_frames)):
 
 for i in range(len(inter_frames)):
         plt.figure()
-        plt.imshow(inter_frames[i].T)
+        plt.imshow(inter_frames[i].T,vmin=ValMin,vmax=ValMax)
+        plt.colorbar()
         plt.savefig('./%02d.png' % i)
